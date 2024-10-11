@@ -4,6 +4,10 @@ from pypylon import pylon
 detector = cv2.QRCodeDetector()
 
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
+camera.Open()
+
+camera.AcquisitionFrameRateEnable.Value = True
+camera.AcquisitionFrameRate.Value = 160.0
 
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 converter = pylon.ImageFormatConverter()
