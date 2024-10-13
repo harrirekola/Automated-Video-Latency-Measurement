@@ -1,5 +1,7 @@
 import cv2
 from pypylon import pylon
+import json
+from datetime import datetime
 
 detector = cv2.QRCodeDetector()
 
@@ -7,7 +9,10 @@ camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 camera.Open()
 
 camera.AcquisitionFrameRateEnable.Value = True
-camera.AcquisitionFrameRate.Value = 160.0
+camera.AcquisitionFrameRate.Value = 60.0
+camera.ExposureTime.Value = 1300.0
+
+camera.MaxNumBuffer = 10
 
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 converter = pylon.ImageFormatConverter()
@@ -34,6 +39,10 @@ while camera.IsGrabbing():
             for s, p in zip(decoded_data, points):
                 if s:
                     print(f"QR Code detected: {s}")
+                    # Save the time and frame number into a JSON file
+                    data = {'time': datetime.now().isoformat(), 'frame_number': s}
+                    with open('qr_scans.json', 'a') as f:
+                        f.write(json.dumps(data) + '\n')
                     color = (0, 255, 0)
                 else:
                     color = (0, 0, 255)
@@ -49,3 +58,25 @@ while camera.IsGrabbing():
 
 camera.StopGrabbing()
 cv2.destroyAllWindows()
+
+differences = []
+
+with open('qr_scans.json', 'r') as f:
+    lines = f.readlines()
+
+    for line in lines:
+        record = json.loads(line)
+        time_left_str = record['time']
+        frame_info = record['frame_number']
+
+        time_right_str = frame_info.split('QR Code: ')[1].split(' - Frame:')[0]
+
+        time_left = datetime.strptime(time_left_str, '%Y-%m-%dT%H:%M:%S.%f')
+        time_right = datetime.strptime(time_right_str, '%Y-%m-%d %H:%M:%S.%f')
+
+        diff = (time_left - time_right).total_seconds() * 1000
+
+        differences.append(diff)
+
+    mean_difference = sum(differences) / len(differences)
+    print(f"The mean difference is approximately {mean_difference:.3f} milliseconds.")
